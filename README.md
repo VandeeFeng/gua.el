@@ -15,6 +15,7 @@ A traditional Chinese Yi Jing divination tool implemented in Emacs. It simulates
 - ⚡ Support for displaying results at current point or in *scratch* buffer
 - 🌐 Uses JSON for hexagram data storage, easy to extend and maintain
 - 🔮 Supports automatic daily fortune divination at startup
+- 🤖 Integrated LLM support for advanced interpretations (Ollama, OpenAI, OpenRouter)
 
 ## Project Structure
 
@@ -66,30 +67,53 @@ You can customize the tool's behavior through the following variables:
 ;; To use a custom gua.json file, set:
 (setq gua-data-directory "/your/custom/path")
 
-;; Enable LLM integration for divination interpretation
+;; LLM Integration Configuration
+;; ----------------------------
+
+;; 1. Enable LLM integration
 (setq gua-llm-enabled t)  ; Enable LLM integration
 ;; or
 (setq gua-llm-enabled nil)  ; Disable LLM integration (default)
 
-;; Configure LLM service
-(setq gua-llm-service 'ollama)  ; Use Ollama (default)
-;; or
-(setq gua-llm-service 'custom)  ; Use custom LLM service
+;; 2. Choose LLM service
+(setq gua-llm-service 'ollama)    ; Use Ollama (default) - local LLM service
+(setq gua-llm-service 'openai)    ; Use OpenAI API - requires API key
+(setq gua-llm-service 'openrouter); Use OpenRouter API - requires API key
+(setq gua-llm-service 'custom)    ; Use custom LLM service
 
-;; Set LLM model
-(setq gua-llm-model "qwen2.5:14b")  ; Default model for Ollama
+;; 3. Configure service-specific settings
 
-;; Set LLM API endpoint
+;; For Ollama:
+(setq gua-llm-model "qwen2.5:14b")  ; Or any other Ollama model
 (setq gua-llm-endpoint "http://localhost:11434/api/generate")  ; Default Ollama endpoint
+;; No API key needed for Ollama
 
-;; Set LLM API key (if using custom service)
-(setq gua-llm-api-key "your-api-key")  ; Not needed for Ollama
+;; For OpenAI:
+(setq gua-llm-model "gpt-4-turbo-preview")  ; Or "gpt-3.5-turbo", etc.
+(setq gua-llm-api-key "your-openai-api-key")
+;; Endpoint will be automatically set to "https://api.openai.com/v1/chat/completions"
+;; Or you can set custom endpoint:
+(setq gua-llm-endpoint "https://your-custom-openai-endpoint")
 
-;; Customize LLM system prompt
-(setq gua-llm-system-prompt "Your custom system prompt")  ; Optional
+;; For OpenRouter:
+(setq gua-llm-model "anthropic/claude-3-opus")  ; Or any other supported model
+(setq gua-llm-api-key "your-openrouter-api-key")
+;; Endpoint will be automatically set to "https://openrouter.ai/api/v1/chat/completions"
+;; Or you can set custom endpoint:
+(setq gua-llm-endpoint "https://your-custom-openrouter-endpoint")
 
-;; Customize LLM user prompt template
-(setq gua-llm-default-user-prompt "Your custom user prompt template")  ; Optional
+;; For Custom Service:
+(setq gua-llm-service 'custom)
+(setq gua-llm-model "your-model-name")
+(setq gua-llm-api-key "your-api-key")
+(setq gua-llm-endpoint "https://your-custom-endpoint")  ; Required for custom service
+
+;; 4. Optional: Customize prompts
+;; System prompt for LLM context
+(setq gua-llm-system-prompt "Your custom system prompt")
+
+;; User prompt template for formatting questions and results
+(setq gua-llm-default-user-prompt "Your custom user prompt template")
 
 ;; Run daily fortune divination at startup
 (add-hook 'emacs-startup-hook
@@ -99,6 +123,41 @@ You can customize the tool's behavior through the following variables:
               (insert "\n\n;; Daily Fortune\n")
               (insert (gua-divination "How's my fortune today?")))))
 ```
+
+### LLM Integration Details
+
+The tool supports three LLM services out of the box:
+
+1. **Ollama** (Default)
+   - Local LLM service
+   - No API key required
+   - Supports various models like Qwen, LLaMA, etc.
+   - Default endpoint: `http://localhost:11434/api/generate`
+
+2. **OpenAI**
+   - Cloud-based service
+   - Requires API key from [OpenAI Platform](https://platform.openai.com)
+   - Supports models like GPT-4, GPT-3.5
+   - Default endpoint: `https://api.openai.com/v1/chat/completions`
+   - Supports custom endpoint configuration
+
+3. **OpenRouter**
+   - Multi-model API gateway
+   - Requires API key from [OpenRouter](https://openrouter.ai)
+   - Access to various models from different providers
+   - Default endpoint: `https://openrouter.ai/api/v1/chat/completions`
+   - Supports custom endpoint configuration
+
+4. **Custom Service**
+   - Fully customizable configuration
+   - Requires manual setup of endpoint, model, and API key
+   - Follows the same JSON request/response format as OpenAI
+
+The service endpoint is automatically configured when you change `gua-llm-service`, but you can always override it by setting `gua-llm-endpoint` manually. Basic setup requires:
+1. The service (`gua-llm-service`)
+2. The model name (`gua-llm-model`)
+3. API key if required (`gua-llm-api-key`)
+4. Custom endpoint if needed (`gua-llm-endpoint`)
 
 ## Data File
 
