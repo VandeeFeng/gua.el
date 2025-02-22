@@ -1,5 +1,6 @@
 (require 'json)
 (require 'time-date)
+(require 'url)
 
 (defvar gua-dict
   '(("阳阳阳" . "乾")
@@ -111,6 +112,98 @@ If nil, insert result in *scratch* buffer as before."
   :type 'boolean
   :group 'gua)
 
+(defcustom gua-llm-enabled nil
+  "If non-nil, enable LLM integration for divination interpretation."
+  :type 'boolean
+  :group 'gua)
+
+(defcustom gua-llm-service 'ollama
+  "The LLM service to use.
+Currently supported services: ollama, custom."
+  :type '(choice (const :tag "Ollama" ollama)
+                (const :tag "Custom Service" custom))
+  :group 'gua)
+
+(defcustom gua-llm-model "qwen2.5:14b"
+  "The model to use for LLM queries.
+For ollama, this would be the model name (e.g. 'qwen', 'llama2', etc.).
+For custom services, this would be the model identifier required by the service."
+  :type 'string
+  :group 'gua)
+
+(defcustom gua-llm-endpoint "http://localhost:11434/api/generate"
+  "The endpoint URL for LLM API calls.
+Default is the local Ollama endpoint."
+  :type 'string
+  :group 'gua)
+
+(defcustom gua-llm-api-key nil
+  "API key for LLM service.
+Not needed for Ollama, but required for most other services."
+  :type '(choice (const :tag "Not needed" nil)
+                (string :tag "API Key"))
+  :group 'gua)
+
+(defcustom gua-llm-system-prompt
+  "You are a professional I Ching (易经) divination interpreter. Your task is to interpret the divination result in Chinese.
+
+IMPORTANT RULES:
+1. Extract and use the EXACT symbols and names from the input:
+   - Hexagram name: extract from the line starting with '卦名为：'
+   - Upper trigram: extract from the line starting with '首卦为：'
+   - Lower trigram: extract from the line starting with '次卦为：'
+   - Full hexagram symbol: extract from the line starting with '六爻结果'
+2. NEVER convert Chinese characters to pinyin or ASCII
+3. NEVER modify or rewrite any symbols
+4. Keep all interpretations in Chinese language
+
+Output Format:
+1. 卦象概述
+   - 卦名：[从结果中提取的卦名]
+   - 上卦：[从结果中提取的上卦名和符号]
+   - 下卦：[从结果中提取的下卦名和符号]
+   - 卦象：[从结果中提取的完整卦象符号]
+   - 含义：[简要说明]
+
+2. 核心信息
+   [核心信息概述]
+
+3. 详细解读
+   - 卦象构成
+     * 上卦：[上卦解释]
+     * 下卦：[下卦解释]
+     * 关系：[上下卦关系]
+   - 主题分析
+     [核心主题解释]
+   - 问题解答
+     [针对问题的具体解释]
+
+4. 实践指导
+   [具体建议]
+
+5. 总结
+   [总结和最终建议]
+
+Note: Always maintain the exact formatting of Chinese characters and symbols as they appear in the input. Do not attempt to convert or modify any symbols."
+  "System prompt for LLM when interpreting divination results."
+  :type 'string
+  :group 'gua)
+
+(defcustom gua-llm-default-user-prompt
+  "Interpret the following I Ching divination result. Keep all Chinese characters and symbols exactly as they appear:
+
+Question:
+%s
+
+Divination Result:
+%s
+
+Important: Preserve all Chinese characters, trigram symbols (e.g. ☰,☷,etc), and hexagram symbols (e.g. ䷊) exactly as shown above."
+  "Default user prompt template for LLM.
+%s will be replaced with the question and divination result."
+  :type 'string
+  :group 'gua)
+
 (defun gua-set-random-seed ()
   "Set random seed based on current time"
   (random t))
@@ -173,6 +266,73 @@ Otherwise, use the project root directory (the directory containing this file)."
   "Get Unicode symbol for a hexagram."
   (or (cdr (assoc gua-key gua-hexagram-dict))
       gua-key))
+
+(defun gua-llm-query (system-prompt user-prompt)
+  "Query LLM with given prompts and return the response.
+SYSTEM-PROMPT is the system context.
+USER-PROMPT is the user's query."
+  (when (and (eq gua-llm-service 'custom)
+             (null gua-llm-api-key))
+    (error "LLM API key not set for custom service"))
+  
+  (let* ((url-request-method "POST")
+         (url-request-extra-headers
+          (append
+           '(("Content-Type" . "application/json"))
+           (when (and (eq gua-llm-service 'custom) gua-llm-api-key)
+             `(("Authorization" . ,(concat "Bearer " gua-llm-api-key))))))
+         (request-data
+          (cond
+           ((eq gua-llm-service 'ollama)
+            `((model . ,gua-llm-model)
+              (prompt . ,(format "%s\n\n%s" system-prompt user-prompt))
+              (stream . :json-false)
+              (options . ((temperature . 0.7)))))
+           (t
+            `((model . ,gua-llm-model)
+              (messages . [((role . "system")
+                          (content . ,system-prompt))
+                         ((role . "user")
+                          (content . ,user-prompt))])))))
+         (url-request-data
+          (encode-coding-string
+           (json-encode request-data)
+           'utf-8))
+         (response-buffer (url-retrieve-synchronously gua-llm-endpoint t t))
+         response-json)
+    
+    (if (null response-buffer)
+        (error "Failed to connect to LLM service")
+      (with-current-buffer response-buffer
+        (set-buffer-multibyte t)
+        (goto-char (point-min))
+        (re-search-forward "^$")
+        (delete-region (point-min) (1+ (point)))
+        (condition-case err
+            (setq response-json (json-read))
+          (error
+           (kill-buffer)
+           (error "Failed to parse JSON response: %s" (error-message-string err))))
+        (kill-buffer)))
+    
+    (let ((response-text
+           (cond
+            ((eq gua-llm-service 'ollama)
+             (or (cdr (assoc 'response response-json))
+                 (error "No response field in Ollama output")))
+            (t
+             (or (cdr (assoc 'content (aref (cdr (assoc 'choices response-json)) 0)))
+                 (error "No content in response"))))))
+      ;; Ensure the response is properly decoded
+      (decode-coding-string response-text 'utf-8))))
+
+(defun gua-format-llm-input (question divination-result)
+  "Format the input for LLM query.
+QUESTION is the original divination question.
+DIVINATION-RESULT is the raw divination result."
+  (format gua-llm-default-user-prompt
+          question
+          divination-result))
 
 (defun gua-divination (question)
   "Do a gua divination for the given question"
@@ -254,7 +414,14 @@ Otherwise, use the project root directory (the directory containing this file)."
                      gua-sentence)
               output)))
     
-    (mapconcat 'identity (reverse output) "\n")))
+    (let ((divination-text (mapconcat 'identity (reverse output) "\n")))
+      (if gua-llm-enabled
+          (concat divination-text
+                  "\n\nLLM 解读：\n"
+                  (gua-llm-query gua-llm-system-prompt
+                                (gua-format-llm-input question divination-text))
+                  "\n\n切勿迷信，仅供娱乐")
+        divination-text))))
 
 (defun gua ()
   "Interactive gua divination.
