@@ -64,6 +64,31 @@ gua.el/           # 项目文件夹
 ;; 如果需要使用自定义的 gua.json 文件，可以设置：
 (setq gua-data-directory "/your/custom/path")
 
+;; 启用 LLM 集成进行占卜解释
+(setq gua-llm-enabled t)  ; 启用 LLM 集成
+;; 或
+(setq gua-llm-enabled nil)  ; 禁用 LLM 集成（默认）
+
+;; 配置 LLM 服务
+(setq gua-llm-service 'ollama)  ; 使用 Ollama（默认）
+;; 或
+(setq gua-llm-service 'custom)  ; 使用自定义 LLM 服务
+
+;; 设置 LLM 模型
+(setq gua-llm-model "qwen2.5:14b")  ; Ollama 的默认模型
+
+;; 设置 LLM API 端点
+(setq gua-llm-endpoint "http://localhost:11434/api/generate")  ; Ollama 默认端点
+
+;; 设置 LLM API 密钥（使用自定义服务时需要）
+(setq gua-llm-api-key "your-api-key")  ; Ollama 不需要
+
+;; 自定义 LLM 系统提示
+(setq gua-llm-system-prompt "你的自定义系统提示")  ; 可选
+
+;; 自定义 LLM 用户提示模板
+(setq gua-llm-default-user-prompt "你的自定义用户提示模板")  ; 可选
+
 ;; 启动时自动运行今日运势占卜
 (add-hook 'emacs-startup-hook
           (lambda ()

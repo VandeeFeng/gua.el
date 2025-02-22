@@ -66,6 +66,31 @@ You can customize the tool's behavior through the following variables:
 ;; To use a custom gua.json file, set:
 (setq gua-data-directory "/your/custom/path")
 
+;; Enable LLM integration for divination interpretation
+(setq gua-llm-enabled t)  ; Enable LLM integration
+;; or
+(setq gua-llm-enabled nil)  ; Disable LLM integration (default)
+
+;; Configure LLM service
+(setq gua-llm-service 'ollama)  ; Use Ollama (default)
+;; or
+(setq gua-llm-service 'custom)  ; Use custom LLM service
+
+;; Set LLM model
+(setq gua-llm-model "qwen2.5:14b")  ; Default model for Ollama
+
+;; Set LLM API endpoint
+(setq gua-llm-endpoint "http://localhost:11434/api/generate")  ; Default Ollama endpoint
+
+;; Set LLM API key (if using custom service)
+(setq gua-llm-api-key "your-api-key")  ; Not needed for Ollama
+
+;; Customize LLM system prompt
+(setq gua-llm-system-prompt "Your custom system prompt")  ; Optional
+
+;; Customize LLM user prompt template
+(setq gua-llm-default-user-prompt "Your custom user prompt template")  ; Optional
+
 ;; Run daily fortune divination at startup
 (add-hook 'emacs-startup-hook
           (lambda ()
