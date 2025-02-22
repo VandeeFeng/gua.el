@@ -19,6 +19,84 @@
     (4 . "五爻")
     (5 . "六爻")))
 
+(defvar gua-unicode-dict
+  '(("乾" . "☰")  ; 天
+    ("坤" . "☷")  ; 地
+    ("震" . "☳")  ; 雷
+    ("坎" . "☵")  ; 水
+    ("艮" . "☶")  ; 山
+    ("巽" . "☴")  ; 风
+    ("离" . "☲")  ; 火
+    ("兑" . "☱")) ; 泽
+  "Dictionary for mapping trigram names to their Unicode symbols.")
+
+(defvar gua-hexagram-dict
+  '(("乾乾" . "䷀")
+    ("坤坤" . "䷁")
+    ("震坎" . "䷂")
+    ("坎艮" . "䷃")
+    ("坎乾" . "䷄")
+    ("乾坎" . "䷅")
+    ("坤坎" . "䷆")
+    ("坎坤" . "䷇")
+    ("巽乾" . "䷈")
+    ("兑乾" . "䷉")
+    ("乾坤" . "䷊")
+    ("坤乾" . "䷋")
+    ("乾离" . "䷌")
+    ("离乾" . "䷍")
+    ("坤艮" . "䷎")
+    ("震坤" . "䷏")
+    ("兑震" . "䷐")
+    ("艮巽" . "䷑")
+    ("坤兑" . "䷒")
+    ("巽坤" . "䷓")
+    ("离震" . "䷔")
+    ("艮离" . "䷕")
+    ("艮坤" . "䷖")
+    ("坤震" . "䷗")
+    ("震乾" . "䷘")
+    ("乾艮" . "䷙")
+    ("艮震" . "䷚")
+    ("兑巽" . "䷛")
+    ("坎坎" . "䷜")
+    ("离离" . "䷝")
+    ("兑艮" . "䷞")
+    ("震巽" . "䷟")
+    ("艮乾" . "䷠")
+    ("震乾" . "䷡")
+    ("离坤" . "䷢")
+    ("坤离" . "䷣")
+    ("巽离" . "䷤")
+    ("离兑" . "䷥")
+    ("坎艮" . "䷦")
+    ("震坎" . "䷧")
+    ("兑艮" . "䷨")
+    ("巽震" . "䷩")
+    ("兑乾" . "䷪")
+    ("乾兑" . "䷫")
+    ("坤兑" . "䷬")
+    ("兑坤" . "䷭")
+    ("坎兑" . "䷮")
+    ("坎巽" . "䷯")
+    ("兑离" . "䷰")
+    ("巽离" . "䷱")
+    ("震震" . "䷲")
+    ("艮艮" . "䷳")
+    ("巽艮" . "䷴")
+    ("震兑" . "䷵")
+    ("离震" . "䷶")
+    ("艮离" . "䷷")
+    ("巽巽" . "䷸")
+    ("兑兑" . "䷹")
+    ("坎巽" . "䷺")
+    ("兑坎" . "䷻")
+    ("巽兑" . "䷼")
+    ("艮震" . "䷽")
+    ("坎离" . "䷾")
+    ("离坎" . "䷿"))
+  "Dictionary for mapping hexagram names to their Unicode symbols.")
+
 (defcustom gua-data-directory nil
   "Directory containing gua.json file.
 If nil, will use the same directory as where gua.el is installed.
@@ -86,6 +164,16 @@ Otherwise, use the project root directory (the directory containing this file)."
           (mapconcat (lambda (x) (if (> x 0.5) "背" "字")) coin-result "")
           (gua-get-yin-yang coin-result)))
 
+(defun gua-get-unicode-symbol (gua-name)
+  "Get Unicode symbol for a trigram name."
+  (or (cdr (assoc gua-name gua-unicode-dict))
+      gua-name))
+
+(defun gua-get-hexagram-symbol (gua-key)
+  "Get Unicode symbol for a hexagram."
+  (or (cdr (assoc gua-key gua-hexagram-dict))
+      gua-key))
+
 (defun gua-divination (question)
   "Do a gua divination for the given question"
   (gua-set-random-seed)
@@ -117,7 +205,7 @@ Otherwise, use the project root directory (the directory containing this file)."
                        (progn
                          (message "未找到首卦: %s" first-gua-key)
                          "未知")))
-      (push (format "首卦为：%s" first-gua) output))
+      (push (format "首卦为：%s %s" first-gua (gua-get-unicode-symbol first-gua)) output))
     
     ;; Second three coins  
     (dotimes (i 3)
@@ -155,9 +243,12 @@ Otherwise, use the project root directory (the directory containing this file)."
                             "请检查卦象数据"))
              (_ (message "卦辞: %s" gua-sentence)))
         
-        (push (format "次卦为：%s" second-gua) output)
-        (push (format "\n六爻结果: %s\n卦名为：%s\n%s\n卦辞为：%s"
+        (push (format "次卦为：%s %s" second-gua (gua-get-unicode-symbol second-gua)) output)
+        (push (format "\n六爻结果: %s (%s%s) %s\n卦名为：%s\n%s\n卦辞为：%s"
                      gua-key
+                     (gua-get-unicode-symbol first-gua)
+                     (gua-get-unicode-symbol second-gua)
+                     (gua-get-hexagram-symbol gua-key)
                      gua-name
                      gua-des
                      gua-sentence)
