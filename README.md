@@ -85,7 +85,7 @@ You can customize the tool's behavior through the following variables:
 
 ;; For Ollama:
 (setq gua-llm-model "qwen2.5:14b")  ; Or any other Ollama model
-(setq gua-llm-endpoint "http://localhost:11434/api/generate")  ; Default Ollama endpoint
+;; Endpoint is set to "http://localhost:11434/api/generate" by default
 ;; No API key needed for Ollama
 
 ;; For OpenAI:

@@ -83,7 +83,7 @@ gua.el/           # 项目文件夹
 
 ;; Ollama 配置：
 (setq gua-llm-model "qwen2.5:14b")  ; 或其他 Ollama 模型
-(setq gua-llm-endpoint "http://localhost:11434/api/generate")  ; Ollama 默认端点
+;; 端点默认设置为 "http://localhost:11434/api/generate"
 ;; Ollama 不需要 API 密钥
 
 ;; OpenAI 配置：

@@ -136,12 +136,16 @@ For custom services, this would be the model identifier required by the service.
   :type 'string
   :group 'gua)
 
-(defcustom gua-llm-endpoint "http://localhost:11434/api/generate"
+(defcustom gua-llm-endpoint nil
   "The endpoint URL for LLM API calls.
-For Ollama: http://localhost:11434/api/generate
-For OpenAI: https://api.openai.com/v1/chat/completions
-For OpenRouter: https://openrouter.ai/api/v1/chat/completions"
+The endpoint will be automatically set based on gua-llm-service:
+- Ollama: http://localhost:11434/api/generate
+- OpenAI: https://api.openai.com/v1/chat/completions
+- OpenRouter: https://openrouter.ai/api/v1/chat/completions
+For custom service, you need to set this manually."
   :type 'string
+  :initialize (lambda (sym _val)
+                (set-default sym (gua-get-default-endpoint)))
   :group 'gua)
 
 (defcustom gua-llm-api-key nil
@@ -476,14 +480,19 @@ Otherwise, insert in *scratch* buffer."
 
 (defun gua-set-llm-endpoint ()
   "Set the correct endpoint URL based on the selected LLM service."
-  (setq gua-llm-endpoint
-        (cond
-         ((eq gua-llm-service 'ollama)
-          "http://localhost:11434/api/generate")
-         ((eq gua-llm-service 'openai)
-          "https://api.openai.com/v1/chat/completions")
-         ((eq gua-llm-service 'openrouter)
-          "https://openrouter.ai/api/v1/chat/completions")
-         (t gua-llm-endpoint))))
+  (let ((default-endpoint (gua-get-default-endpoint)))
+    (when default-endpoint
+      (setq gua-llm-endpoint default-endpoint))))
+
+(defun gua-get-default-endpoint ()
+  "Get the default endpoint URL based on the current LLM service."
+  (cond
+   ((eq gua-llm-service 'ollama)
+    "http://localhost:11434/api/generate")
+   ((eq gua-llm-service 'openai)
+    "https://api.openai.com/v1/chat/completions")
+   ((eq gua-llm-service 'openrouter)
+    "https://openrouter.ai/api/v1/chat/completions")
+   (t nil)))
 
 (provide 'gua.el) 
