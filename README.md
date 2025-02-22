@@ -90,7 +90,6 @@ The `gua.json` file should contain data in the following format:
     "des": "Hexagram description",
     "sentence": "Divination text"
   },
-  // ... other hexagrams
 }
 ```
 
