@@ -1,5 +1,7 @@
 [中文文档](README_zh.md)
 
+inspired by https://github.com/RealKai42/liu-yao-divining
+
 # Gua - Yi Jing Divination Tool for Emacs
 
 A traditional Chinese Yi Jing divination tool implemented in Emacs. It simulates the traditional six-line divination method by digitally mimicking the coin tossing process, providing users with Yi Jing divination results.

@@ -1,3 +1,5 @@
+inspired by https://github.com/RealKai42/liu-yao-divining
+
 # Gua - Emacs 易经六爻占卜工具
 
 这是一个在 Emacs 中实现的易经六爻占卜工具。它使用传统的六爻占卜方法，通过数字化的方式模拟抛钱币卜卦过程，为用户提供易经六爻占卜的结果。
