@@ -98,6 +98,36 @@
     ("离坎" . "䷿"))
   "Dictionary for mapping hexagram names to their Unicode symbols.")
 
+(defgroup gua nil
+  "Yi Jing divination tool for Emacs."
+  :group 'applications)
+
+;; Define variables that will be used by functions
+(defvar gua-llm-service 'ollama
+  "The LLM service to use. Do not set this directly, use `gua-llm-service' custom variable instead.")
+
+(defvar gua-llm-endpoint nil
+  "The endpoint URL for LLM API calls. Do not set this directly, use `gua-llm-endpoint' custom variable instead.")
+
+;; Define all functions first
+(defun gua-get-default-endpoint ()
+  "Get the default endpoint URL based on the current LLM service."
+  (cond
+   ((eq gua-llm-service 'ollama)
+    "http://localhost:11434/api/generate")
+   ((eq gua-llm-service 'openai)
+    "https://api.openai.com/v1/chat/completions")
+   ((eq gua-llm-service 'openrouter)
+    "https://openrouter.ai/api/v1/chat/completions")
+   (t nil)))
+
+(defun gua-set-llm-endpoint ()
+  "Set the correct endpoint URL based on the selected LLM service."
+  (let ((default-endpoint (gua-get-default-endpoint)))
+    (when default-endpoint
+      (setq gua-llm-endpoint default-endpoint))))
+
+;; Now define customization variables
 (defcustom gua-data-directory nil
   "Directory containing gua.json file.
 If nil, will use the same directory as where gua.el is installed.
@@ -134,18 +164,6 @@ Currently supported services: ollama, openai, openrouter, custom."
 For ollama, this would be the model name (e.g. 'qwen', 'llama2', etc.).
 For custom services, this would be the model identifier required by the service."
   :type 'string
-  :group 'gua)
-
-(defcustom gua-llm-endpoint nil
-  "The endpoint URL for LLM API calls.
-The endpoint will be automatically set based on gua-llm-service:
-- Ollama: http://localhost:11434/api/generate
-- OpenAI: https://api.openai.com/v1/chat/completions
-- OpenRouter: https://openrouter.ai/api/v1/chat/completions
-For custom service, you need to set this manually."
-  :type 'string
-  :initialize (lambda (sym _val)
-                (set-default sym (gua-get-default-endpoint)))
   :group 'gua)
 
 (defcustom gua-llm-api-key nil
@@ -278,112 +296,6 @@ Otherwise, use the project root directory (the directory containing this file)."
   (or (cdr (assoc gua-key gua-hexagram-dict))
       gua-key))
 
-(defun gua-get-default-endpoint ()
-  "Get the default endpoint URL based on the current LLM service."
-  (cond
-   ((eq gua-llm-service 'ollama)
-    "http://localhost:11434/api/generate")
-   ((eq gua-llm-service 'openai)
-    "https://api.openai.com/v1/chat/completions")
-   ((eq gua-llm-service 'openrouter)
-    "https://openrouter.ai/api/v1/chat/completions")
-   (t nil)))
-
-(defun gua-set-llm-endpoint ()
-  "Set the correct endpoint URL based on the selected LLM service."
-  (let ((default-endpoint (gua-get-default-endpoint)))
-    (when default-endpoint
-      (setq gua-llm-endpoint default-endpoint))))
-
-(defun gua-llm-query (system-prompt user-prompt)
-  "Query LLM with given prompts and return the response.
-SYSTEM-PROMPT is the system context.
-USER-PROMPT is the user's query."
-  (when (and (not (eq gua-llm-service 'ollama))
-             (null gua-llm-api-key))
-    (error "LLM API key not set for %s service" gua-llm-service))
-  
-  (let* ((url-request-method "POST")
-         (url-request-extra-headers
-          (append
-           '(("Content-Type" . "application/json"))
-           (cond
-            ((eq gua-llm-service 'ollama) nil)
-            ((eq gua-llm-service 'openai)
-             `(("Authorization" . ,(concat "Bearer " gua-llm-api-key))))
-            ((eq gua-llm-service 'openrouter)
-             `(("Authorization" . ,(concat "Bearer " gua-llm-api-key))))
-            (t `(("Authorization" . ,(concat "Bearer " gua-llm-api-key)))))))
-         (request-data
-          (cond
-           ((eq gua-llm-service 'ollama)
-            `((model . ,gua-llm-model)
-              (prompt . ,(format "%s\n\n%s" system-prompt user-prompt))
-              (stream . :json-false)
-              (options . ((temperature . 0.7)))))
-           ((eq gua-llm-service 'openai)
-            `((model . ,gua-llm-model)
-              (messages . [((role . "system")
-                          (content . ,system-prompt))
-                         ((role . "user")
-                          (content . ,user-prompt))])
-              (temperature . 0.7)
-              (stream . :json-false)))
-           ((eq gua-llm-service 'openrouter)
-            `((model . ,gua-llm-model)
-              (messages . [((role . "system")
-                          (content . ,system-prompt))
-                         ((role . "user")
-                          (content . ,user-prompt))])
-              (temperature . 0.7)))
-           (t
-            `((model . ,gua-llm-model)
-              (messages . [((role . "system")
-                          (content . ,system-prompt))
-                         ((role . "user")
-                          (content . ,user-prompt))])))))
-         (url-request-data
-          (encode-coding-string
-           (json-encode request-data)
-           'utf-8))
-         (response-buffer (url-retrieve-synchronously gua-llm-endpoint t t))
-         response-json)
-    
-    (if (null response-buffer)
-        (error "Failed to connect to LLM service")
-      (with-current-buffer response-buffer
-        (set-buffer-multibyte t)
-        (goto-char (point-min))
-        (re-search-forward "^$")
-        (delete-region (point-min) (1+ (point)))
-        (condition-case err
-            (setq response-json (json-read))
-          (error
-           (kill-buffer)
-           (error "Failed to parse JSON response: %s" (error-message-string err))))
-        (kill-buffer)))
-    
-    (let ((response-text
-           (cond
-            ((eq gua-llm-service 'ollama)
-             (or (cdr (assoc 'response response-json))
-                 (error "No response field in Ollama output")))
-            ((eq gua-llm-service 'openai)
-             (or (cdr (assoc 'content
-                            (cdr (assoc 'message
-                                      (aref (cdr (assoc 'choices response-json)) 0)))))
-                 (error "No content in OpenAI response")))
-            ((eq gua-llm-service 'openrouter)
-             (or (cdr (assoc 'content
-                            (cdr (assoc 'message
-                                      (aref (cdr (assoc 'choices response-json)) 0)))))
-                 (error "No content in OpenRouter response")))
-            (t
-             (or (cdr (assoc 'content (aref (cdr (assoc 'choices response-json)) 0)))
-                 (error "No content in response"))))))
-      ;; Ensure the response is properly decoded
-      (decode-coding-string response-text 'utf-8))))
-
 (defun gua-format-llm-input (question divination-result)
   "Format the input for LLM query.
 QUESTION is the original divination question.
@@ -494,5 +406,94 @@ Otherwise, insert in *scratch* buffer."
       (with-current-buffer (get-buffer-create "*scratch*")
         (goto-char (point-max))
         (insert result)))))
+
+(defun gua-llm-query (system-prompt user-prompt)
+  "Query LLM with given prompts and return the response.
+SYSTEM-PROMPT is the system context.
+USER-PROMPT is the user's query."
+  (when (and (not (eq gua-llm-service 'ollama))
+             (null gua-llm-api-key))
+    (error "LLM API key not set for %s service" gua-llm-service))
+  
+  (let* ((url-request-method "POST")
+         (url-request-extra-headers
+          (append
+           '(("Content-Type" . "application/json"))
+           (cond
+            ((eq gua-llm-service 'ollama) nil)
+            ((eq gua-llm-service 'openai)
+             `(("Authorization" . ,(concat "Bearer " gua-llm-api-key))))
+            ((eq gua-llm-service 'openrouter)
+             `(("Authorization" . ,(concat "Bearer " gua-llm-api-key))))
+            (t `(("Authorization" . ,(concat "Bearer " gua-llm-api-key)))))))
+         (request-data
+          (cond
+           ((eq gua-llm-service 'ollama)
+            `((model . ,gua-llm-model)
+              (prompt . ,(format "%s\n\n%s" system-prompt user-prompt))
+              (stream . :json-false)
+              (options . ((temperature . 0.7)))))
+           ((eq gua-llm-service 'openai)
+            `((model . ,gua-llm-model)
+              (messages . [((role . "system")
+                          (content . ,system-prompt))
+                         ((role . "user")
+                          (content . ,user-prompt))])
+              (temperature . 0.7)
+              (stream . :json-false)))
+           ((eq gua-llm-service 'openrouter)
+            `((model . ,gua-llm-model)
+              (messages . [((role . "system")
+                          (content . ,system-prompt))
+                         ((role . "user")
+                          (content . ,user-prompt))])
+              (temperature . 0.7)))
+           (t
+            `((model . ,gua-llm-model)
+              (messages . [((role . "system")
+                          (content . ,system-prompt))
+                         ((role . "user")
+                          (content . ,user-prompt))])))))
+         (url-request-data
+          (encode-coding-string
+           (json-encode request-data)
+           'utf-8))
+         (response-buffer (url-retrieve-synchronously gua-llm-endpoint t t))
+         response-json)
+    
+    (if (null response-buffer)
+        (error "Failed to connect to LLM service")
+      (with-current-buffer response-buffer
+        (set-buffer-multibyte t)
+        (goto-char (point-min))
+        (re-search-forward "^$")
+        (delete-region (point-min) (1+ (point)))
+        (condition-case err
+            (setq response-json (json-read))
+          (error
+           (kill-buffer)
+           (error "Failed to parse JSON response: %s" (error-message-string err))))
+        (kill-buffer)))
+    
+    (let ((response-text
+           (cond
+            ((eq gua-llm-service 'ollama)
+             (or (cdr (assoc 'response response-json))
+                 (error "No response field in Ollama output")))
+            ((eq gua-llm-service 'openai)
+             (or (cdr (assoc 'content
+                            (cdr (assoc 'message
+                                      (aref (cdr (assoc 'choices response-json)) 0)))))
+                 (error "No content in OpenAI response")))
+            ((eq gua-llm-service 'openrouter)
+             (or (cdr (assoc 'content
+                            (cdr (assoc 'message
+                                      (aref (cdr (assoc 'choices response-json)) 0)))))
+                 (error "No content in OpenRouter response")))
+            (t
+             (or (cdr (assoc 'content (aref (cdr (assoc 'choices response-json)) 0)))
+                 (error "No content in response"))))))
+      ;; Ensure the response is properly decoded
+      (decode-coding-string response-text 'utf-8))))
 
 (provide 'gua.el) 
