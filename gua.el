@@ -278,6 +278,23 @@ Otherwise, use the project root directory (the directory containing this file)."
   (or (cdr (assoc gua-key gua-hexagram-dict))
       gua-key))
 
+(defun gua-get-default-endpoint ()
+  "Get the default endpoint URL based on the current LLM service."
+  (cond
+   ((eq gua-llm-service 'ollama)
+    "http://localhost:11434/api/generate")
+   ((eq gua-llm-service 'openai)
+    "https://api.openai.com/v1/chat/completions")
+   ((eq gua-llm-service 'openrouter)
+    "https://openrouter.ai/api/v1/chat/completions")
+   (t nil)))
+
+(defun gua-set-llm-endpoint ()
+  "Set the correct endpoint URL based on the selected LLM service."
+  (let ((default-endpoint (gua-get-default-endpoint)))
+    (when default-endpoint
+      (setq gua-llm-endpoint default-endpoint))))
+
 (defun gua-llm-query (system-prompt user-prompt)
   "Query LLM with given prompts and return the response.
 SYSTEM-PROMPT is the system context.
@@ -477,22 +494,5 @@ Otherwise, insert in *scratch* buffer."
       (with-current-buffer (get-buffer-create "*scratch*")
         (goto-char (point-max))
         (insert result)))))
-
-(defun gua-set-llm-endpoint ()
-  "Set the correct endpoint URL based on the selected LLM service."
-  (let ((default-endpoint (gua-get-default-endpoint)))
-    (when default-endpoint
-      (setq gua-llm-endpoint default-endpoint))))
-
-(defun gua-get-default-endpoint ()
-  "Get the default endpoint URL based on the current LLM service."
-  (cond
-   ((eq gua-llm-service 'ollama)
-    "http://localhost:11434/api/generate")
-   ((eq gua-llm-service 'openai)
-    "https://api.openai.com/v1/chat/completions")
-   ((eq gua-llm-service 'openrouter)
-    "https://openrouter.ai/api/v1/chat/completions")
-   (t nil)))
 
 (provide 'gua.el) 
