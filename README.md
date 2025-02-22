@@ -28,7 +28,7 @@ gua.el/           # Project folder
 
 1. Clone or download this project
    ```bash
-   git clone https://github.com/your-username/gua.el.git
+   git clone https://github.com/VandeeFeng/gua.el.git
    # or download and extract the zip file
    ```
 

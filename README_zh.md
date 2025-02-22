@@ -26,7 +26,7 @@ gua.el/           # 项目文件夹
 
 1. 克隆或下载本项目到本地
    ```bash
-   git clone https://github.com/your-username/gua.el.git
+   git clone https://github.com/VandeeFeng/gua.el.git
    # 或下载 zip 文件并解压
    ```
 
