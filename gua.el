@@ -1,6 +1,9 @@
+;; -*- lexical-binding: t; -*-
+
 (require 'json)
 (require 'time-date)
 (require 'url)
+(require 'cl-lib)
 
 (defvar gua-dict
   '(("阳阳阳" . "乾")
@@ -108,6 +111,9 @@
 
 (defvar gua-llm-endpoint nil
   "The endpoint URL for LLM API calls. Do not set this directly, use `gua-llm-endpoint' custom variable instead.")
+
+(defvar gua-llm-callback nil
+  "Callback function to handle LLM response.")
 
 ;; Define all functions first
 (defun gua-get-default-endpoint ()
@@ -304,8 +310,10 @@ DIVINATION-RESULT is the raw divination result."
           question
           divination-result))
 
-(defun gua-divination (question)
-  "Do a gua divination for the given question"
+(defun gua-divination (question callback)
+  "Do a gua divination for the given question asynchronously.
+QUESTION is the divination question.
+CALLBACK is a function that will be called with the final divination result."
   (gua-set-random-seed)
   (let* ((gua-data (gua-load-json))
          (_ (message "数据类型: %s" (type-of gua-data)))
@@ -386,31 +394,85 @@ DIVINATION-RESULT is the raw divination result."
     
     (let ((divination-text (mapconcat 'identity (reverse output) "\n")))
       (if gua-llm-enabled
-          (concat divination-text
-                  "\n\nLLM 解读：\n"
-                  (gua-llm-query gua-llm-system-prompt
-                                (gua-format-llm-input question divination-text))
-                  "\n\n切勿迷信，仅供娱乐")
-        divination-text))))
+          (progn
+            (message "LLM 占卜中...")
+            (cl-flet ((handle-llm-response 
+                      (llm-response)
+                      (funcall callback
+                              (concat divination-text
+                                     "\n\nLLM 解读：\n"
+                                     llm-response
+                                     "\n\n切勿迷信，仅供娱乐"))))
+              (gua-llm-query 
+               gua-llm-system-prompt
+               (gua-format-llm-input question divination-text)
+               #'handle-llm-response)))
+        (funcall callback divination-text)))))
 
 (defun gua ()
   "Interactive gua divination.
 If `gua-insert-at-point' is non-nil, insert result at current point.
 Otherwise, insert in *scratch* buffer."
   (interactive)
-  (let* ((question (read-string "请输入你的问题: "))
-         (divination-result (gua-divination question))
-         (result (concat "\n\n" divination-result)))
-    (if gua-insert-at-point
-        (insert result)
-      (with-current-buffer (get-buffer-create "*scratch*")
-        (goto-char (point-max))
-        (insert result)))))
+  (let ((question (read-string "请输入你的问题: ")))
+    (message "正在进行占卜，请稍候...")
+    (gua-divination 
+     question
+     (lambda (result)
+       (let ((result-text (concat "\n\n" result)))
+         (if gua-insert-at-point
+             (insert result-text)
+           (with-current-buffer (get-buffer-create "*scratch*")
+             (goto-char (point-max))
+             (insert result-text)))
+         (message "占卜完成！"))))))
 
-(defun gua-llm-query (system-prompt user-prompt)
-  "Query LLM with given prompts and return the response.
+(defun gua-llm-handle-response (status callback)
+  "Handle the LLM response in the callback buffer.
+STATUS is the callback status from url-retrieve.
+CALLBACK is the function to call with the response text."
+  (if (or (not status) ;; No error
+          (eq (car status) :redirect)) ;; Handle redirects
+      (let (response-json response-text)
+        (set-buffer-multibyte t)
+        (goto-char (point-min))
+        (re-search-forward "^$")
+        (delete-region (point-min) (1+ (point)))
+        (condition-case err
+            (progn
+              (setq response-json (json-read))
+              (setq response-text
+                    (cond
+                     ((eq gua-llm-service 'ollama)
+                      (or (cdr (assoc 'response response-json))
+                          (error "No response field in Ollama output")))
+                     ((eq gua-llm-service 'openai)
+                      (or (cdr (assoc 'content
+                                     (cdr (assoc 'message
+                                               (aref (cdr (assoc 'choices response-json)) 0)))))
+                          (error "No content in OpenAI response")))
+                     ((eq gua-llm-service 'openrouter)
+                      (or (cdr (assoc 'content
+                                     (cdr (assoc 'message
+                                               (aref (cdr (assoc 'choices response-json)) 0)))))
+                          (error "No content in OpenRouter response")))
+                     (t
+                      (or (cdr (assoc 'content (aref (cdr (assoc 'choices response-json)) 0)))
+                      (error "No content in response")))))
+              (message "LLM 解读完成，正在生成结果...")
+              (funcall callback (decode-coding-string response-text 'utf-8)))
+          (error
+           (message "LLM 解读出错：%s" (error-message-string err))
+           (funcall callback (format "Error parsing JSON response: %s" (error-message-string err))))))
+    (message "LLM 请求出错：%s" status)
+    (funcall callback (format "Error in HTTP request: %s" status)))
+  (kill-buffer))
+
+(defun gua-llm-query (system-prompt user-prompt callback)
+  "Query LLM with given prompts asynchronously.
 SYSTEM-PROMPT is the system context.
-USER-PROMPT is the user's query."
+USER-PROMPT is the user's query.
+CALLBACK is a function that will be called with the response text."
   (when (and (not (eq gua-llm-service 'ollama))
              (null gua-llm-api-key))
     (error "LLM API key not set for %s service" gua-llm-service))
@@ -457,43 +519,10 @@ USER-PROMPT is the user's query."
          (url-request-data
           (encode-coding-string
            (json-encode request-data)
-           'utf-8))
-         (response-buffer (url-retrieve-synchronously gua-llm-endpoint t t))
-         response-json)
-    
-    (if (null response-buffer)
-        (error "Failed to connect to LLM service")
-      (with-current-buffer response-buffer
-        (set-buffer-multibyte t)
-        (goto-char (point-min))
-        (re-search-forward "^$")
-        (delete-region (point-min) (1+ (point)))
-        (condition-case err
-            (setq response-json (json-read))
-          (error
-           (kill-buffer)
-           (error "Failed to parse JSON response: %s" (error-message-string err))))
-        (kill-buffer)))
-    
-    (let ((response-text
-           (cond
-            ((eq gua-llm-service 'ollama)
-             (or (cdr (assoc 'response response-json))
-                 (error "No response field in Ollama output")))
-            ((eq gua-llm-service 'openai)
-             (or (cdr (assoc 'content
-                            (cdr (assoc 'message
-                                      (aref (cdr (assoc 'choices response-json)) 0)))))
-                 (error "No content in OpenAI response")))
-            ((eq gua-llm-service 'openrouter)
-             (or (cdr (assoc 'content
-                            (cdr (assoc 'message
-                                      (aref (cdr (assoc 'choices response-json)) 0)))))
-                 (error "No content in OpenRouter response")))
-            (t
-             (or (cdr (assoc 'content (aref (cdr (assoc 'choices response-json)) 0)))
-                 (error "No content in response"))))))
-      ;; Ensure the response is properly decoded
-      (decode-coding-string response-text 'utf-8))))
+           'utf-8)))
+    (url-retrieve gua-llm-endpoint
+                 #'gua-llm-handle-response
+                 (list callback)
+                 t t)))
 
 (provide 'gua.el) 
