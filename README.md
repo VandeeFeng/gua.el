@@ -121,7 +121,13 @@ You can customize the tool's behavior through the following variables:
             (with-current-buffer "*scratch*"
               (goto-char (point-max))
               (insert "\n\n;; Daily Fortune\n")
-              (insert (gua-divination "How's my fortune today?")))))
+              ;; Use async divination with callback
+              (gua-divination 
+               "How's my fortune today?"
+               (lambda (result)
+                 (with-current-buffer "*scratch*"
+                   (goto-char (point-max))
+                   (insert result)))))))
 ```
 
 ### LLM Integration Details

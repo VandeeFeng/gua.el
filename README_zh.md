@@ -119,7 +119,13 @@ gua.el/           # 项目文件夹
             (with-current-buffer "*scratch*"
               (goto-char (point-max))
               (insert "\n\n;; 今日运势\n")
-              (insert (gua-divination "今天运势如何？")))))
+              ;; 使用异步占卜并在回调中处理结果
+              (gua-divination 
+               "今天运势如何？"
+               (lambda (result)
+                 (with-current-buffer "*scratch*"
+                   (goto-char (point-max))
+                   (insert result)))))))
 ```
 
 ### LLM 集成详情
