@@ -1,4 +1,47 @@
-;; -*- lexical-binding: t; -*-
+;;; gua.el --- I Ching (Yi Jing) divination tool for Emacs -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2025 Free Software Foundation, Inc.
+
+;; Author: Vandee <your.email@example.com>
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "27.1") (json "1.5") (cl-lib "1.0"))
+;; Keywords: games, tools, chinese, divination
+;; URL: https://github.com/VandeeFeng/gua.el
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Gua.el is an Emacs package that provides I Ching (Yi Jing) divination
+;; functionality within Emacs.  It supports both traditional coin-based
+;; divination methods and modern LLM-powered interpretations.
+
+;; Features:
+;; - Traditional three-coin divination method
+;; - Unicode display of trigrams and hexagrams
+;; - LLM-powered interpretation support (optional)
+;; - Multiple LLM service integrations (Ollama, OpenAI, OpenRouter)
+;; - Customizable divination output location
+;; - Comprehensive hexagram and trigram information
+
+;; Usage:
+;; M-x gua RET
+;; Enter your question when prompted.  The divination result will be
+;; displayed either at point or in the *scratch* buffer, depending on
+;; your configuration.
+
+;;; Code:
 
 (require 'json)
 (require 'time-date)
@@ -525,4 +568,6 @@ CALLBACK is a function that will be called with the response text."
                  (list callback)
                  t t)))
 
-(provide 'gua.el) 
+(provide 'gua.el)
+
+;;; gua.el ends here 
