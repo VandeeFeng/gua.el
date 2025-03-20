@@ -35,7 +35,7 @@ gua.el/           # 项目文件夹
    ```elisp
    ;; 将 "/path/to/gua.el" 替换为实际的项目路径
    (add-to-list 'load-path "/path/to/gua.el")
-   (require 'gua.el)
+   (require 'gua)
    ```
 
 ## 使用方法

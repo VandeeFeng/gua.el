@@ -37,7 +37,7 @@ gua.el/           # Project folder
    ```elisp
    ;; Replace "/path/to/gua.el" with the actual project path
    (add-to-list 'load-path "/path/to/gua.el")
-   (require 'gua.el)
+   (require 'gua)
    ```
 
 ## Usage

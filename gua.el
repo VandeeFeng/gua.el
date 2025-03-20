@@ -182,7 +182,7 @@
 If nil, will use the same directory as where gua.el is installed.
 You can set this to a specific directory to override the default behavior."
   :type '(choice (const :tag "Use default location" nil)
-                (directory :tag "Custom directory"))
+                 (directory :tag "Custom directory"))
   :group 'gua)
 
 (defcustom gua-insert-at-point nil
@@ -200,9 +200,9 @@ If nil, insert result in *scratch* buffer as before."
   "The LLM service to use.
 Currently supported services: ollama, openai, openrouter, custom."
   :type '(choice (const :tag "Ollama" ollama)
-                (const :tag "OpenAI" openai)
-                (const :tag "OpenRouter" openrouter)
-                (const :tag "Custom Service" custom))
+                 (const :tag "OpenAI" openai)
+                 (const :tag "OpenRouter" openrouter)
+                 (const :tag "Custom Service" custom))
   :set (lambda (sym val)
          (set-default sym val)
          (gua-set-llm-endpoint))
@@ -219,7 +219,7 @@ For custom services, this would be the model identifier required by the service.
   "API key for LLM service.
 Not needed for Ollama, but required for most other services."
   :type '(choice (const :tag "Not needed" nil)
-                (string :tag "API Key"))
+                 (string :tag "API Key"))
   :group 'gua)
 
 (defcustom gua-llm-system-prompt
@@ -311,8 +311,8 @@ Otherwise, use the project root directory (the directory containing this file)."
          (_ (message "尝试加载文件: %s" json-file)))
     (if (file-exists-p json-file)
         (let* ((json-string (with-temp-buffer
-                            (insert-file-contents json-file)
-                            (buffer-string)))
+                              (insert-file-contents json-file)
+                              (buffer-string)))
                (json-object-type 'hash-table)  ; 使用哈希表
                (json-array-type 'list)
                (data (json-read-from-string json-string)))
@@ -382,10 +382,10 @@ CALLBACK is a function that will be called with the final divination result."
            (first-gua-lookup (assoc first-gua-key gua-dict))
            (_ (message "首卦查找结果: %s" first-gua-lookup)))
       (setq first-gua (if first-gua-lookup
-                         (cdr first-gua-lookup)
-                       (progn
-                         (message "未找到首卦: %s" first-gua-key)
-                         "未知")))
+                          (cdr first-gua-lookup)
+                        (progn
+                          (message "未找到首卦: %s" first-gua-key)
+                          "未知")))
       (push (format "首卦为：%s %s" first-gua (gua-get-unicode-symbol first-gua)) output))
     
     ;; Second three coins  
@@ -401,10 +401,10 @@ CALLBACK is a function that will be called with the final divination result."
            (second-gua-lookup (assoc second-gua-key gua-dict))
            (_ (message "次卦查找结果: %s" second-gua-lookup)))
       (setq second-gua (if second-gua-lookup
-                          (cdr second-gua-lookup)
-                        (progn
-                          (message "未找到次卦: %s" second-gua-key)
-                          "未知")))
+                           (cdr second-gua-lookup)
+                         (progn
+                           (message "未找到次卦: %s" second-gua-key)
+                           "未知")))
       
       (let* ((gua-key (concat first-gua second-gua))
              (_ (message "完整卦象键值: %s" gua-key))
@@ -412,27 +412,27 @@ CALLBACK is a function that will be called with the final divination result."
              (gua-info (gethash gua-key gua-data))
              (_ (message "查找结果: %s" gua-info))
              (gua-name (if gua-info
-                          (gethash "name" gua-info)
-                        (format "未知卦象：%s" gua-key)))
+                           (gethash "name" gua-info)
+                         (format "未知卦象：%s" gua-key)))
              (_ (message "卦名: %s" gua-name))
              (gua-des (if gua-info
-                         (gethash "des" gua-info)
-                       "无法解析此卦象"))
+                          (gethash "des" gua-info)
+                        "无法解析此卦象"))
              (_ (message "卦象描述: %s" gua-des))
              (gua-sentence (if gua-info
-                              (gethash "sentence" gua-info)
-                            "请检查卦象数据"))
+                               (gethash "sentence" gua-info)
+                             "请检查卦象数据"))
              (_ (message "卦辞: %s" gua-sentence)))
         
         (push (format "次卦为：%s %s" second-gua (gua-get-unicode-symbol second-gua)) output)
         (push (format "\n六爻结果: %s (%s%s) %s\n卦名为：%s\n%s\n卦辞为：%s"
-                     gua-key
-                     (gua-get-unicode-symbol first-gua)
-                     (gua-get-unicode-symbol second-gua)
-                     (gua-get-hexagram-symbol gua-key)
-                     gua-name
-                     gua-des
-                     gua-sentence)
+                      gua-key
+                      (gua-get-unicode-symbol first-gua)
+                      (gua-get-unicode-symbol second-gua)
+                      (gua-get-hexagram-symbol gua-key)
+                      gua-name
+                      gua-des
+                      gua-sentence)
               output)))
     
     (let ((divination-text (mapconcat 'identity (reverse output) "\n")))
@@ -440,12 +440,12 @@ CALLBACK is a function that will be called with the final divination result."
           (progn
             (message "LLM 占卜中...")
             (cl-flet ((handle-llm-response 
-                      (llm-response)
-                      (funcall callback
-                              (concat divination-text
-                                     "\n\nLLM 解读：\n"
-                                     llm-response
-                                     "\n\n切勿迷信，仅供娱乐"))))
+                        (llm-response)
+                        (funcall callback
+                                 (concat divination-text
+                                         "\n\nLLM 解读：\n"
+                                         llm-response
+                                         "\n\n切勿迷信，仅供娱乐"))))
               (gua-llm-query 
                gua-llm-system-prompt
                (gua-format-llm-input question divination-text)
@@ -491,17 +491,17 @@ CALLBACK is the function to call with the response text."
                           (error "No response field in Ollama output")))
                      ((eq gua-llm-service 'openai)
                       (or (cdr (assoc 'content
-                                     (cdr (assoc 'message
-                                               (aref (cdr (assoc 'choices response-json)) 0)))))
+                                      (cdr (assoc 'message
+                                                  (aref (cdr (assoc 'choices response-json)) 0)))))
                           (error "No content in OpenAI response")))
                      ((eq gua-llm-service 'openrouter)
                       (or (cdr (assoc 'content
-                                     (cdr (assoc 'message
-                                               (aref (cdr (assoc 'choices response-json)) 0)))))
+                                      (cdr (assoc 'message
+                                                  (aref (cdr (assoc 'choices response-json)) 0)))))
                           (error "No content in OpenRouter response")))
                      (t
                       (or (cdr (assoc 'content (aref (cdr (assoc 'choices response-json)) 0)))
-                      (error "No content in response")))))
+                          (error "No content in response")))))
               (message "LLM 解读完成，正在生成结果...")
               (funcall callback (decode-coding-string response-text 'utf-8)))
           (error
@@ -541,33 +541,33 @@ CALLBACK is a function that will be called with the response text."
            ((eq gua-llm-service 'openai)
             `((model . ,gua-llm-model)
               (messages . [((role . "system")
-                          (content . ,system-prompt))
-                         ((role . "user")
-                          (content . ,user-prompt))])
+                            (content . ,system-prompt))
+                           ((role . "user")
+                            (content . ,user-prompt))])
               (temperature . 0.7)
               (stream . :json-false)))
            ((eq gua-llm-service 'openrouter)
             `((model . ,gua-llm-model)
               (messages . [((role . "system")
-                          (content . ,system-prompt))
-                         ((role . "user")
-                          (content . ,user-prompt))])
+                            (content . ,system-prompt))
+                           ((role . "user")
+                            (content . ,user-prompt))])
               (temperature . 0.7)))
            (t
             `((model . ,gua-llm-model)
               (messages . [((role . "system")
-                          (content . ,system-prompt))
-                         ((role . "user")
-                          (content . ,user-prompt))])))))
+                            (content . ,system-prompt))
+                           ((role . "user")
+                            (content . ,user-prompt))])))))
          (url-request-data
           (encode-coding-string
            (json-encode request-data)
            'utf-8)))
     (url-retrieve gua-llm-endpoint
-                 #'gua-llm-handle-response
-                 (list callback)
-                 t t)))
+                  #'gua-llm-handle-response
+                  (list callback)
+                  t t)))
 
-(provide 'gua.el)
+(provide 'gua)
 
 ;;; gua.el ends here 
